@@ -23,15 +23,15 @@
 (require 'project)
 
 (defcustom flymake-ruff-program "ruff"
-  "Path to program ruff."
+  "How to invoke ruff, e.g. \"ruff\" or '(\"uv\" \"run\" \"ruff\")."
   :group 'flymake-ruff
-  :type 'string)
+  :type '(choice string (repeat string)))
 
 (defcustom flymake-ruff-program-args
   '("check" "--output-format" "concise" "--exit-zero" "--quiet" "-")
   "Flags to be given to \"ruff\"."
   :group 'flymake-ruff
-  :type '(list string))
+  :type '(repeat string))
 
 (defconst flymake-ruff-default-severity :warning
   "Default Flymake severity for unmatched Ruff diagnostic codes.")
@@ -97,12 +97,15 @@
              (args (if code-filename
                        (append args `("--stdin-filename" ,code-filename))
                      args))
+             (program flymake-ruff-program)
+             (command (if (listp program) (car program) program))
+             (args (if (listp program) (append (cdr program) args) args))
              (default-directory (if (project-current)
                                     (project-root (project-current))
                                   default-directory)))
         ;; call-process-region will run the program and replace current buffer
         ;; with its stdout, that's why we need to run it in a temporary buffer
-        (apply #'call-process-region (point-min) (point-max) flymake-ruff-program t t nil args))
+        (apply #'call-process-region (point-min) (point-max) command t t nil args))
       (goto-char (point-min))
       (while (search-forward-regexp flymake-ruff--output-regex (point-max) t)
         (when (match-string 2)
